@@ -235,3 +235,29 @@ def export_csv(event_id):
 init_db()
 if __name__=='__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT','5000')), debug=True)
+    @app.route('/admin/event/<int:event_id>/reset', methods=['POST'])
+def reset_event(event_id):
+    admin_required()
+    conn = db()
+
+    ev = conn.execute(
+        'SELECT * FROM events WHERE id=?',
+        (event_id,)
+    ).fetchone()
+
+    if not ev:
+        conn.close()
+        abort(404)
+
+    conn.execute('DELETE FROM votes WHERE event_id=?', (event_id,))
+    conn.execute('DELETE FROM participants WHERE event_id=?', (event_id,))
+    conn.execute(
+        "UPDATE events SET phase='checkin' WHERE id=?",
+        (event_id,)
+    )
+
+    conn.commit()
+    conn.close()
+
+    flash('파티 데이터가 초기화되었습니다.')
+    return redirect(url_for('admin_event', event_id=event_id))
