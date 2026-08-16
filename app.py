@@ -113,7 +113,7 @@ def party(code):
     ev=event_by_code(code)
     if not ev: abort(404)
     p=participant_for(ev['id'])
-       if request.method=='POST' and not p:
+    if request.method=='POST' and not p:
         nickname=request.form.get('nickname','').strip()
         age_group=request.form.get('age_group','').strip()
         gender=request.form.get('gender','').strip()
@@ -194,20 +194,37 @@ def party(code):
             conn.close()
 
         return redirect(url_for('party', code=code))
-        return redirect(url_for('party', code=code))
     return render_template('party.html', ev=ev, p=p)
 
 @app.route('/p/<code>/profile', methods=['POST'])
 def save_profile(code):
-    ev=event_by_code(code); p=participant_for(ev['id']) if ev else None
-    if not ev or not p: abort(403)
+    ev=event_by_code(code)
+    p=participant_for(ev['id']) if ev else None
+
+    if not ev or not p:
+        abort(403)
+
     if ev['phase'] not in ('profile','vote'):
         flash('지금은 프로필 작성 시간이 아닙니다.')
-        return redirect(url_for('party',code=code))
-    vals=[request.form.get(k,'').strip() for k in ['age_group','mbti','intro','answer1','answer2']]
-    conn=db(); conn.execute('UPDATE participants SET age_group=?,mbti=?,intro=?,answer1=?,answer2=?,updated_at=? WHERE id=?',(*vals,now(),p['id'])); conn.commit(); conn.close()
+        return redirect(url_for('party', code=code))
+
+    vals=[
+        request.form.get(k,'').strip()
+        for k in ['mbti','intro','answer1','answer2']
+    ]
+
+    conn=db()
+    conn.execute(
+        '''UPDATE participants
+           SET mbti=?, intro=?, answer1=?, answer2=?, updated_at=?
+           WHERE id=?''',
+        (*vals, now(), p['id'])
+    )
+    conn.commit()
+    conn.close()
+
     flash('작성 내용이 저장되었습니다. 다른 참가자에게 공개되지 않습니다.')
-    return redirect(url_for('party',code=code))
+    return redirect(url_for('party', code=code))
 
 @app.route('/p/<code>/vote', methods=['POST'])
 def save_vote(code):
