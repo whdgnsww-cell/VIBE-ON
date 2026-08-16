@@ -3,17 +3,10 @@
 {% if not p %}
 <section class="card">
   <h2>체크인</h2>
-  <p>명찰에 적힌 번호와 닉네임, 간단한 사전 설문을 입력해주세요.</p>
+  <p>명찰에 적힌 닉네임, 간단한 사전 설문을 입력해주세요.</p>
 
-  <form method="post">
-    <label>명찰 번호</label>
-    <input
-      name="participant_no"
-      placeholder="예: A17"
-      maxlength="8"
-      required
-    >
-
+<form method="post">
+  
     <label>닉네임</label>
     <input
       name="nickname"
@@ -22,17 +15,12 @@
       required
     >
 
-    <label>나이대</label>
-    <select name="age_group" required>
-      <option value="">선택해주세요</option>
-      <option value="20대 초반">20대 초반</option>
-      <option value="20대 중반">20대 중반</option>
-      <option value="20대 후반">20대 후반</option>
-      <option value="30대 초반">30대 초반</option>
-      <option value="30대 중반">30대 중반</option>
-      <option value="30대 후반">30대 후반</option>
-      <option value="40대 이상">40대 이상</option>
-    </select>
+  <label>나이대</label>
+<select name="age_group" required>
+    <option value="">선택해주세요</option>
+    <option value="20대">20대</option>
+    <option value="30대">30대</option>
+</select>
 
     <label>성별</label>
     <select name="gender" required>
@@ -79,9 +67,55 @@
     }
   });
 </script>
-{% else %}<section class="identity"><div><small>내 명찰 번호</small><strong>{{p.participant_no}}</strong></div><div><small>내 닉네임</small><strong>{{p.nickname}}</strong></div></section>
+{% else %}
+<section class="identity">
+    <div>
+        <small>내 닉네임</small>
+        <strong>{{p.nickname}}</strong>
+    </div>
+</section>
 {% if ev.phase=='checkin' %}<section class="card center"><div class="bigicon">✓</div><h2>입장 완료</h2><p>관리자가 다음 단계를 열면 이 화면을 새로고침해주세요.</p><a class="button ghost" href="">새로고침</a></section>{% endif %}
-{% if ev.phase in ['profile','vote'] %}<section class="card"><h2>나를 소개해주세요</h2><p>이 내용은 <b>관리자에게만</b> 보입니다.</p><form method="post" action="{{url_for('save_profile',code=ev.code)}}"><label>연령대</label><select name="age_group"><option value="">선택 안 함</option>{% for a in ['20대 초반','20대 중반','20대 후반','30대 초반','30대 중반','30대 후반','40대 이상'] %}<option {% if p.age_group==a %}selected{% endif %}>{{a}}</option>{% endfor %}</select><label>MBTI</label><input name="mbti" value="{{p.mbti or ''}}" maxlength="8" placeholder="예: ENFP"><label>한 줄 소개</label><input name="intro" value="{{p.intro or ''}}" maxlength="80" placeholder="취미, 분위기, 좋아하는 것"><label>오늘 대화해보고 싶은 사람은?</label><textarea name="answer1" maxlength="200" placeholder="자유롭게 작성">{{p.answer1 or ''}}</textarea><label>내가 중요하게 보는 매력 포인트</label><textarea name="answer2" maxlength="200" placeholder="자유롭게 작성">{{p.answer2 or ''}}</textarea><button>작성 내용 저장</button></form></section>{% endif %}
+{% if ev.phase in ['profile','vote'] %}
+<section class="card">
+    <h2>나를 소개해주세요</h2>
+    <p>이 내용은 <b>관리자에게만</b> 보입니다.</p>
+
+    <form method="post" action="{{url_for('save_profile',code=ev.code)}}">
+
+        <label>MBTI</label>
+        <input
+            name="mbti"
+            value="{{p.mbti or ''}}"
+            maxlength="8"
+            placeholder="예: ENFP"
+        >
+
+        <label>한 줄 소개</label>
+        <input
+            name="intro"
+            value="{{p.intro or ''}}"
+            maxlength="80"
+            placeholder="취미, 분위기, 좋아하는 것"
+        >
+
+        <label>오늘 대화해보고 싶은 사람은?</label>
+        <textarea
+            name="answer1"
+            maxlength="200"
+            placeholder="자유롭게 작성"
+        >{{p.answer1 or ''}}</textarea>
+
+        <label>내가 중요하게 보는 매력 포인트</label>
+        <textarea
+            name="answer2"
+            maxlength="200"
+            placeholder="자유롭게 작성"
+        >{{p.answer2 or ''}}</textarea>
+
+        <button>작성 내용 저장</button>
+    </form>
+</section>
+{% endif %}
 {% if ev.phase=='vote' %}<section class="card vote"><h2>호감 투표</h2><p>상대방 <b>명찰 번호</b>만 입력합니다. 닉네임 목록이나 중간 결과는 공개되지 않습니다.</p><form method="post" action="{{url_for('save_vote',code=ev.code)}}">{% for i in range(1,ev.max_votes+1) %}<label>{{i}}순위</label><input name="vote{{i}}" placeholder="예: B04" maxlength="8">{% endfor %}<button>투표 저장하기</button></form><div class="privacy">🔒 누가 누구에게 투표했는지 참가자에게 공개되지 않습니다.</div></section>{% endif %}
 {% if ev.phase=='closed' %}<section class="card center"><div class="bigicon">♥</div><h2>파티가 마감되었습니다</h2><p>참여해주셔서 감사합니다. 결과는 운영자가 별도로 안내합니다.</p></section>{% endif %}{% endif %}
 {% endblock %}
