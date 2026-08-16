@@ -41,6 +41,8 @@ def init_db():
       nickname TEXT NOT NULL,
       age_group TEXT,
       mbti TEXT,
+      gender TEXT,
+visit_source TEXT,
       intro TEXT,
       answer1 TEXT,
       answer2 TEXT,
@@ -62,7 +64,19 @@ def init_db():
       FOREIGN KEY(voter_id) REFERENCES participants(id)
     );
     ''')
-    conn.commit(); conn.close()
+    columns = {
+        row["name"]
+        for row in conn.execute("PRAGMA table_info(participants)").fetchall()
+    }
+
+    if "gender" not in columns:
+        conn.execute("ALTER TABLE participants ADD COLUMN gender TEXT")
+
+    if "visit_source" not in columns:
+        conn.execute("ALTER TABLE participants ADD COLUMN visit_source TEXT")
+
+    conn.commit()
+    conn.close()
 
 
 def now(): return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
