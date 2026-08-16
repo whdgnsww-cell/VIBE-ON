@@ -1,5 +1,10 @@
 {% extends 'base.html' %}{% block body %}<section class="top"><div><a class="textlink" href="{{url_for('admin_dashboard')}}">← 목록</a><h1>{{ev.name}}</h1><div class="eyebrow">{{ev.code}} · {{ev.event_date or ''}}</div></div><span class="pill">{{phase_label[ev.phase]}}</span></section>
 <section class="card qrbox"><img src="{{url_for('event_qr',event_id=ev.id)}}"><div><h2>참가자 QR</h2><p>현장에서 이 QR만 보여주면 됩니다.</p><code>{{request.url_root.rstrip('/')}}/p/{{ev.code}}</code></div></section>
+<form method="post"
+      action="{{ url_for('reset_event', event_id=ev.id) }}"
+      onsubmit="return confirm('정말 초기화하시겠습니까? 참가자, 프로필, 투표 기록이 모두 삭제됩니다.');">
+  <button type="submit" class="button ghost">데이터 초기화</button>
+</form>
 <section class="card"><h2>진행 단계</h2><form method="post" class="phasebar">{% for ph in ['checkin','profile','vote','closed'] %}<button name="phase" value="{{ph}}" class="{% if ev.phase==ph %}active{% endif %}">{{phase_label[ph]}}</button>{% endfor %}</form><p class="tiny">단계를 바꾸면 참가자 화면도 해당 단계만 사용할 수 있습니다.</p></section>
 <section class="metrics"><div><strong>{{participants|length}}</strong><span>체크인</span></div><div><strong>{{votes|length}}</strong><span>투표 건수</span></div><div><strong>{{mutual|length}}</strong><span>상호 선택</span></div></section>
 <section class="card"><div class="sectionhead"><h2>상호 선택 매칭</h2><a class="button small ghost" href="{{url_for('export_csv',event_id=ev.id)}}">CSV 저장</a></div>{% if mutual %}<div class="matchgrid">{% for m in mutual %}<div class="match">♥ {{m.a_no}} {{m.a_name}} ↔ {{m.b_no}} {{m.b_name}}</div>{% endfor %}</div>{% else %}<p class="muted">아직 상호 선택이 없습니다.</p>{% endif %}</section>
