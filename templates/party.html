@@ -1,6 +1,84 @@
 {% extends 'base.html' %}{% block body %}
 <section class="top"><div><div class="eyebrow">{{ev.code}}</div><h1>{{ev.name}}</h1></div><span class="pill">{{phase_label[ev.phase]}}</span></section>
-{% if not p %}<section class="card"><h2>체크인</h2><p>명찰에 적힌 번호와 사용할 닉네임을 입력해주세요.</p><form method="post"><label>명찰 번호</label><input name="participant_no" placeholder="예: A17" maxlength="8" required><label>닉네임</label><input name="nickname" placeholder="나만의 닉네임" maxlength="20" required><button>체크인 완료</button></form><div class="privacy">🔒 닉네임과 작성 내용은 관리자만 확인할 수 있습니다.</div></section>
+{% if not p %}
+<section class="card">
+  <h2>체크인</h2>
+  <p>명찰에 적힌 번호와 닉네임, 간단한 사전 설문을 입력해주세요.</p>
+
+  <form method="post">
+    <label>명찰 번호</label>
+    <input
+      name="participant_no"
+      placeholder="예: A17"
+      maxlength="8"
+      required
+    >
+
+    <label>닉네임</label>
+    <input
+      name="nickname"
+      placeholder="닉네임"
+      maxlength="20"
+      required
+    >
+
+    <label>나이대</label>
+    <select name="age_group" required>
+      <option value="">선택해주세요</option>
+      <option value="20대 초반">20대 초반</option>
+      <option value="20대 중반">20대 중반</option>
+      <option value="20대 후반">20대 후반</option>
+      <option value="30대 초반">30대 초반</option>
+      <option value="30대 중반">30대 중반</option>
+      <option value="30대 후반">30대 후반</option>
+      <option value="40대 이상">40대 이상</option>
+    </select>
+
+    <label>성별</label>
+    <select name="gender" required>
+      <option value="">선택해주세요</option>
+      <option value="남성">남성</option>
+      <option value="여성">여성</option>
+    </select>
+
+    <label>VIBE ON을 어떻게 알게 되셨나요?</label>
+    <select name="visit_source" id="visit_source" required>
+      <option value="">선택해주세요</option>
+      <option value="인스타그램">인스타그램</option>
+      <option value="블로그">블로그</option>
+      <option value="인터넷 검색">인터넷 검색</option>
+      <option value="모임·소개팅 앱">모임·소개팅 앱</option>
+      <option value="지인 추천">지인 추천</option>
+      <option value="재방문">재방문</option>
+      <option value="기타">기타</option>
+    </select>
+
+    <input
+      name="visit_source_other"
+      id="visit_source_other"
+      placeholder="기타 경로를 직접 적어주세요"
+      style="display:none;"
+    >
+
+    <button type="submit">입장하기</button>
+  </form>
+</section>
+
+<script>
+  const sourceSelect = document.getElementById('visit_source');
+  const sourceOther = document.getElementById('visit_source_other');
+
+  sourceSelect.addEventListener('change', function () {
+    if (this.value === '기타') {
+      sourceOther.style.display = 'block';
+      sourceOther.required = true;
+    } else {
+      sourceOther.style.display = 'none';
+      sourceOther.required = false;
+      sourceOther.value = '';
+    }
+  });
+</script>
 {% else %}<section class="identity"><div><small>내 명찰 번호</small><strong>{{p.participant_no}}</strong></div><div><small>내 닉네임</small><strong>{{p.nickname}}</strong></div></section>
 {% if ev.phase=='checkin' %}<section class="card center"><div class="bigicon">✓</div><h2>입장 완료</h2><p>관리자가 다음 단계를 열면 이 화면을 새로고침해주세요.</p><a class="button ghost" href="">새로고침</a></section>{% endif %}
 {% if ev.phase in ['profile','vote'] %}<section class="card"><h2>나를 소개해주세요</h2><p>이 내용은 <b>관리자에게만</b> 보입니다.</p><form method="post" action="{{url_for('save_profile',code=ev.code)}}"><label>연령대</label><select name="age_group"><option value="">선택 안 함</option>{% for a in ['20대 초반','20대 중반','20대 후반','30대 초반','30대 중반','30대 후반','40대 이상'] %}<option {% if p.age_group==a %}selected{% endif %}>{{a}}</option>{% endfor %}</select><label>MBTI</label><input name="mbti" value="{{p.mbti or ''}}" maxlength="8" placeholder="예: ENFP"><label>한 줄 소개</label><input name="intro" value="{{p.intro or ''}}" maxlength="80" placeholder="취미, 분위기, 좋아하는 것"><label>오늘 대화해보고 싶은 사람은?</label><textarea name="answer1" maxlength="200" placeholder="자유롭게 작성">{{p.answer1 or ''}}</textarea><label>내가 중요하게 보는 매력 포인트</label><textarea name="answer2" maxlength="200" placeholder="자유롭게 작성">{{p.answer2 or ''}}</textarea><button>작성 내용 저장</button></form></section>{% endif %}
