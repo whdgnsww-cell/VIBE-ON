@@ -236,6 +236,7 @@ init_db()
 if __name__=='__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT','5000')), debug=True)
     @app.route('/admin/event/<int:event_id>/reset', methods=['POST'])
+@app.route('/admin/event/<int:event_id>/reset', methods=['POST'])
 def reset_event(event_id):
     admin_required()
     conn = db()
@@ -249,8 +250,14 @@ def reset_event(event_id):
         conn.close()
         abort(404)
 
-    conn.execute('DELETE FROM votes WHERE event_id=?', (event_id,))
-    conn.execute('DELETE FROM participants WHERE event_id=?', (event_id,))
+    conn.execute(
+        'DELETE FROM votes WHERE event_id=?',
+        (event_id,)
+    )
+    conn.execute(
+        'DELETE FROM participants WHERE event_id=?',
+        (event_id,)
+    )
     conn.execute(
         "UPDATE events SET phase='checkin' WHERE id=?",
         (event_id,)
