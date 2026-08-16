@@ -113,21 +113,87 @@ def party(code):
     ev=event_by_code(code)
     if not ev: abort(404)
     p=participant_for(ev['id'])
-    if request.method=='POST' and not p:
+       if request.method=='POST' and not p:
         nickname=request.form.get('nickname','').strip()
-        participant_no=request.form.get('participant_no','').strip().upper()
-        if len(nickname)<1 or len(participant_no)<2:
-            flash('닉네임과 명찰 번호를 입력해주세요.')
+        age_group=request.form.get('age_group','').strip()
+        gender=request.form.get('gender','').strip()
+        visit_source=request.form.get('visit_source','').strip()
+        visit_source_other=request.form.get('visit_source_other','').strip()
+
+        if len(nickname) < 1:
+            flash('닉네임을 입력해주세요.')
             return redirect(url_for('party', code=code))
+
+        if age_group not in ('20대', '30대'):
+            flash('나이대를 선택해주세요.')
+            return redirect(url_for('party', code=code))
+
+        if gender not in ('남성', '여성'):
+            flash('성별을 선택해주세요.')
+            return redirect(url_for('party', code=code))
+
+        allowed_sources = (
+            '인스타그램',
+            '블로그',
+            '인터넷 검색',
+            '모임·소개팅 앱',
+            '지인 추천',
+            '재방문',
+            '기타'
+        )
+
+        if visit_source not in allowed_sources:
+            flash('방문 경로를 선택해주세요.')
+            return redirect(url_for('party', code=code))
+
+        if visit_source == '기타':
+            if not visit_source_other:
+                flash('기타 방문 경로를 입력해주세요.')
+                return redirect(url_for('party', code=code))
+            visit_source = '기타: ' + visit_source_other
+
+        # 기존 시스템 호환을 위해 내부 participant_no에는 닉네임을 저장합니다.
+        participant_no = nickname
+
         conn=db()
         try:
             token=secrets.token_urlsafe(24)
-            conn.execute('INSERT INTO participants(event_id,token,participant_no,nickname,checked_in_at,updated_at) VALUES(?,?,?,?,?,?)',
-                         (ev['id'],token,participant_no,nickname,now(),now()))
-            conn.commit(); session[f'participant_{ev["id"]}']=token
+
+            conn.execute(
+                '''INSERT INTO participants(
+                    event_id,
+                    token,
+                    participant_no,
+                    nickname,
+                    age_group,
+                    gender,
+                    visit_source,
+                    checked_in_at,
+                    updated_at
+                ) VALUES(?,?,?,?,?,?,?,?,?)''',
+                (
+                    ev['id'],
+                    token,
+                    participant_no,
+                    nickname,
+                    age_group,
+                    gender,
+                    visit_source,
+                    now(),
+                    now()
+                )
+            )
+
+            conn.commit()
+            session[f'participant_{ev["id"]}']=token
+
         except sqlite3.IntegrityError:
-            flash('이미 사용 중인 닉네임 또는 명찰 번호입니다.')
-        finally: conn.close()
+            flash('이미 사용 중인 닉네임입니다. 다른 닉네임을 사용해주세요.')
+
+        finally:
+            conn.close()
+
+        return redirect(url_for('party', code=code))
         return redirect(url_for('party', code=code))
     return render_template('party.html', ev=ev, p=p)
 
