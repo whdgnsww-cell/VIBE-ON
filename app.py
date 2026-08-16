@@ -235,7 +235,6 @@ def export_csv(event_id):
 init_db()
 if __name__=='__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT','5000')), debug=True)
-    @app.route('/admin/event/<int:event_id>/reset', methods=['POST'])
 @app.route('/admin/event/<int:event_id>/reset', methods=['POST'])
 def reset_event(event_id):
     admin_required()
