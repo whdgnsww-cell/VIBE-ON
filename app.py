@@ -42,6 +42,7 @@ def init_db():
       age_group TEXT,
       mbti TEXT,
       gender TEXT,
+      media_consent TEXT,
 visit_source TEXT,
       intro TEXT,
       answer1 TEXT,
@@ -70,11 +71,13 @@ visit_source TEXT,
     }
 
     if "gender" not in columns:
-        conn.execute("ALTER TABLE participants ADD COLUMN gender TEXT")
+    conn.execute("ALTER TABLE participants ADD COLUMN gender TEXT")
 
-    if "visit_source" not in columns:
-        conn.execute("ALTER TABLE participants ADD COLUMN visit_source TEXT")
+if "media_consent" not in columns:
+    conn.execute("ALTER TABLE participants ADD COLUMN media_consent TEXT")
 
+if "visit_source" not in columns:
+    conn.execute("ALTER TABLE participants ADD COLUMN visit_source TEXT")
     conn.commit()
     conn.close()
 
@@ -118,6 +121,7 @@ def party(code):
         age_group=request.form.get('age_group','').strip()
         gender=request.form.get('gender','').strip()
         visit_source=request.form.get('visit_source','').strip()
+        media_consent=request.form.get('media_consent','').strip()
         visit_source_other=request.form.get('visit_source_other','').strip()
 
         if len(nickname) < 1:
@@ -131,6 +135,10 @@ def party(code):
         if gender not in ('남성', '여성'):
             flash('성별을 선택해주세요.')
             return redirect(url_for('party', code=code))
+
+        if media_consent != 'yes':
+        flash('사진·영상 촬영 및 SNS 활용 동의가 필요합니다.')
+        return redirect(url_for('party', code=code))
 
         allowed_sources = (
             '인스타그램',
@@ -167,10 +175,11 @@ def party(code):
                     nickname,
                     age_group,
                     gender,
+                    media_consent,
                     visit_source,
                     checked_in_at,
                     updated_at
-                ) VALUES(?,?,?,?,?,?,?,?,?)''',
+                ) VALUES(?,?,?,?,?,?,?,?,?,?)''',
                 (
                     ev['id'],
                     token,
@@ -178,6 +187,7 @@ def party(code):
                     nickname,
                     age_group,
                     gender,
+                    media_consent,
                     visit_source,
                     now(),
                     now()
