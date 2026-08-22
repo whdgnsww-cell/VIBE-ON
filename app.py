@@ -70,7 +70,7 @@ visit_source TEXT,
         for row in conn.execute("PRAGMA table_info(participants)").fetchall()
     }
 
-    if "gender" not in columns:
+if "gender" not in columns:
     conn.execute("ALTER TABLE participants ADD COLUMN gender TEXT")
 
 if "media_consent" not in columns:
