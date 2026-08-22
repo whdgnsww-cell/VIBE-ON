@@ -70,17 +70,17 @@ visit_source TEXT,
         for row in conn.execute("PRAGMA table_info(participants)").fetchall()
     }
 
-if "gender" not in columns:
-    conn.execute("ALTER TABLE participants ADD COLUMN gender TEXT")
-
-if "media_consent" not in columns:
-    conn.execute("ALTER TABLE participants ADD COLUMN media_consent TEXT")
-
-if "visit_source" not in columns:
-    conn.execute("ALTER TABLE participants ADD COLUMN visit_source TEXT")
+    if "gender" not in columns:
+        conn.execute("ALTER TABLE participants ADD COLUMN gender TEXT")
     
-    conn.commit()
-    conn.close()
+    if "media_consent" not in columns:
+        conn.execute("ALTER TABLE participants ADD COLUMN media_consent TEXT")
+    
+    if "visit_source" not in columns:
+        conn.execute("ALTER TABLE participants ADD COLUMN visit_source TEXT")
+        
+        conn.commit()
+        conn.close()
 
 
 def now(): return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
