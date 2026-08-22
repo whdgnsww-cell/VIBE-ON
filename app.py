@@ -78,6 +78,7 @@ if "media_consent" not in columns:
 
 if "visit_source" not in columns:
     conn.execute("ALTER TABLE participants ADD COLUMN visit_source TEXT")
+    
     conn.commit()
     conn.close()
 
