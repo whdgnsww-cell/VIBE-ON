@@ -137,8 +137,8 @@ def party(code):
             return redirect(url_for('party', code=code))
 
         if media_consent != 'yes':
-        flash('사진·영상 촬영 및 SNS 활용 동의가 필요합니다.')
-        return redirect(url_for('party', code=code))
+            flash('사진·영상 촬영 및 SNS 활용 동의가 필요합니다.')
+            return redirect(url_for('party', code=code))
 
         allowed_sources = (
             '인스타그램',
