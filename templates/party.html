@@ -94,28 +94,43 @@
             placeholder="예: ENFP"
         >
 
-        <label>한 줄 소개</label>
-        <input
-            name="intro"
-            value="{{p.intro or ''}}"
-            maxlength="80"
-            placeholder="취미, 분위기, 좋아하는 것"
-        >
+<label>🎧 요즘 내 플레이리스트 1순위는?</label>
+<input
+    name="intro"
+    value="{{p.intro or ''}}"
+    maxlength="80"
+    placeholder="노래 또는 아티스트를 적어주세요"
+>
 
-        <label>오늘 대화해보고 싶은 사람은?</label>
-        <textarea
-            name="answer1"
-            maxlength="200"
-            placeholder="자유롭게 작성"
-        >{{p.answer1 or ''}}</textarea>
+<label>🎤 노래방 가면 꼭 부르는 한 곡은?</label>
+<textarea
+    name="answer1"
+    maxlength="200"
+    placeholder="나만의 애창곡을 알려주세요"
+>{{p.answer1 or ''}}</textarea>
 
-        <label>내가 중요하게 보는 매력 포인트</label>
-        <textarea
-            name="answer2"
-            maxlength="200"
-            placeholder="자유롭게 작성"
-        >{{p.answer2 or ''}}</textarea>
+<label>✨ 음악 말고 요즘 빠져 있는 것은?</label>
+<textarea
+    name="answer2"
+    maxlength="200"
+    placeholder="취미, 음식, 여행, 운동 등 자유롭게"
+>{{p.answer2 or ''}}</textarea>
+<div class="contest-box">
+    <h3>🏆 VIBE ON 노래 대회</h3>
+    <p>🎤 노래 부문 우승 상금 5만원 · 👏 리액션 부문 우승 상금 5만원</p>
 
+    <label>노래 대회에 참가하시겠어요?</label>
+
+    <label>
+        <input type="radio" name="contest_join" value="yes" required>
+        참가할게요! 🎤
+    </label>
+
+    <label>
+        <input type="radio" name="contest_join" value="no" required>
+        이번에는 관람할게요 👀
+    </label>
+</div>
         <button>작성 내용 저장</button>
     </form>
 </section>
