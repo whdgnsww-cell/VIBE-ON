@@ -228,9 +228,16 @@ def save_profile(code):
     for k in ['mbti','intro','answer1','answer2','contest_join']
 ]
 
-if vals[4] not in ('yes', 'no'):
-    flash('노래 대회 참가 여부를 선택해주세요.')
-    return redirect(url_for('party', code=code))
+    vals=[
+        request.form.get(k,'').strip()
+        for k in ['mbti','intro','answer1','answer2','contest_join']
+    ]
+
+    if vals[4] not in ('yes', 'no'):
+        flash('노래 대회 참가 여부를 선택해주세요.')
+        return redirect(url_for('party', code=code))
+
+    conn=db()
 
     conn=db()
     conn.execute(
