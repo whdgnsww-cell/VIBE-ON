@@ -83,13 +83,14 @@ def init_db():
     if "contest_join" not in columns:
         conn.execute("ALTER TABLE participants ADD COLUMN contest_join TEXT")
 
-        vote_columns = {
+    vote_columns = {
         row["name"]
         for row in conn.execute("PRAGMA table_info(votes)").fetchall()
     }
 
     if "reason" not in vote_columns:
         conn.execute("ALTER TABLE votes ADD COLUMN reason TEXT")
+
     conn.commit()
     conn.close()
 
