@@ -43,7 +43,8 @@ def init_db():
       mbti TEXT,
       gender TEXT,
       media_consent TEXT,
-visit_source TEXT,
+      visit_source TEXT,
+      contest_join TEXT,
       intro TEXT,
       answer1 TEXT,
       answer2 TEXT,
@@ -78,9 +79,11 @@ visit_source TEXT,
     
     if "visit_source" not in columns:
         conn.execute("ALTER TABLE participants ADD COLUMN visit_source TEXT")
+    if "contest_join" not in columns:
+        conn.execute("ALTER TABLE participants ADD COLUMN contest_join TEXT")
         
-        conn.commit()
-        conn.close()
+    conn.commit()
+    conn.close()
 
 
 def now(): return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -124,7 +127,7 @@ def party(code):
         visit_source=request.form.get('visit_source','').strip()
         media_consent=request.form.get('media_consent','').strip()
         visit_source_other=request.form.get('visit_source_other','').strip()
-
+        contest_join=request.form.get('contest_join','').strip()
         if len(nickname) < 1:
             flash('닉네임을 입력해주세요.')
             return redirect(url_for('party', code=code))
@@ -140,7 +143,9 @@ def party(code):
         if media_consent != 'yes':
             flash('사진·영상 촬영 및 SNS 활용 동의가 필요합니다.')
             return redirect(url_for('party', code=code))
-
+        if contest_join not in ('yes', 'no'):
+            flash('노래 대회 참가 여부를 선택해주세요.')
+            return redirect(url_for('party', code=code))
         allowed_sources = (
             '인스타그램',
             '블로그',
@@ -178,6 +183,7 @@ def party(code):
                     gender,
                     media_consent,
                     visit_source,
+                    contest_join,
                     checked_in_at,
                     updated_at
                 ) VALUES(?,?,?,?,?,?,?,?,?,?)''',
@@ -190,6 +196,7 @@ def party(code):
                     gender,
                     media_consent,
                     visit_source,
+                    contest_join,
                     now(),
                     now()
                 )
