@@ -143,9 +143,6 @@ def party(code):
         if media_consent != 'yes':
             flash('사진·영상 촬영 및 SNS 활용 동의가 필요합니다.')
             return redirect(url_for('party', code=code))
-        if contest_join not in ('yes', 'no'):
-            flash('노래 대회 참가 여부를 선택해주세요.')
-            return redirect(url_for('party', code=code))
         allowed_sources = (
             '인스타그램',
             '블로그',
@@ -227,14 +224,18 @@ def save_profile(code):
         return redirect(url_for('party', code=code))
 
     vals=[
-        request.form.get(k,'').strip()
-        for k in ['mbti','intro','answer1','answer2']
-    ]
+    request.form.get(k,'').strip()
+    for k in ['mbti','intro','answer1','answer2','contest_join']
+]
+
+if vals[4] not in ('yes', 'no'):
+    flash('노래 대회 참가 여부를 선택해주세요.')
+    return redirect(url_for('party', code=code))
 
     conn=db()
     conn.execute(
         '''UPDATE participants
-           SET mbti=?, intro=?, answer1=?, answer2=?, updated_at=?
+           SET mbti=?, intro=?, answer1=?, answer2=?, contest_join=?, updated_at=?
            WHERE id=?''',
         (*vals, now(), p['id'])
     )
