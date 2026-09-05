@@ -180,7 +180,6 @@ def party(code):
                     gender,
                     media_consent,
                     visit_source,
-                    contest_join,
                     checked_in_at,
                     updated_at
                 ) VALUES(?,?,?,?,?,?,?,?,?,?)''',
@@ -193,7 +192,6 @@ def party(code):
                     gender,
                     media_consent,
                     visit_source,
-                    contest_join,
                     now(),
                     now()
                 )
