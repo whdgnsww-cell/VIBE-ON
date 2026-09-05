@@ -60,6 +60,7 @@ def init_db():
       voter_id INTEGER NOT NULL,
       target_no TEXT NOT NULL,
       rank_no INTEGER NOT NULL,
+      reason TEXT,
       created_at TEXT NOT NULL,
       UNIQUE(event_id, voter_id, rank_no),
       FOREIGN KEY(event_id) REFERENCES events(id),
@@ -81,7 +82,14 @@ def init_db():
         conn.execute("ALTER TABLE participants ADD COLUMN visit_source TEXT")
     if "contest_join" not in columns:
         conn.execute("ALTER TABLE participants ADD COLUMN contest_join TEXT")
-        
+
+        vote_columns = {
+        row["name"]
+        for row in conn.execute("PRAGMA table_info(votes)").fetchall()
+    }
+
+    if "reason" not in vote_columns:
+        conn.execute("ALTER TABLE votes ADD COLUMN reason TEXT")
     conn.commit()
     conn.close()
 
@@ -252,28 +260,73 @@ def save_profile(code):
 
 @app.route('/p/<code>/vote', methods=['POST'])
 def save_vote(code):
-    ev=event_by_code(code); p=participant_for(ev['id']) if ev else None
-    if not ev or not p: abort(403)
-    if ev['phase']!='vote':
+    ev=event_by_code(code)
+    p=participant_for(ev['id']) if ev else None
+
+    if not ev or not p:
+        abort(403)
+
+    if ev['phase'] != 'vote':
         flash('관리자가 아직 투표를 열지 않았습니다.')
-        return redirect(url_for('party',code=code))
-    targets=[]
-    for i in range(1, ev['max_votes']+1):
-        t=request.form.get(f'vote{i}','').strip().upper()
-        if t: targets.append((i,t))
-    if len({t for _,t in targets}) != len(targets):
-        flash('같은 번호를 중복 선택할 수 없습니다.'); return redirect(url_for('party',code=code))
-    if any(t==p['participant_no'] for _,t in targets):
-        flash('본인에게는 투표할 수 없습니다.'); return redirect(url_for('party',code=code))
+        return redirect(url_for('party', code=code))
+
+    target_nickname=request.form.get('target_nickname','').strip()
+    reason=request.form.get('reason','').strip()
+
+    if not target_nickname:
+        flash('투표할 참가자의 닉네임을 입력해주세요.')
+        return redirect(url_for('party', code=code))
+
+    if not reason:
+        flash('투표한 이유를 간단하게 적어주세요.')
+        return redirect(url_for('party', code=code))
+
     conn=db()
-    valid=set(r['participant_no'] for r in conn.execute('SELECT participant_no FROM participants WHERE event_id=?',(ev['id'],)))
-    if any(t not in valid for _,t in targets):
-        conn.close(); flash('존재하지 않는 명찰 번호가 포함되어 있습니다.'); return redirect(url_for('party',code=code))
-    conn.execute('DELETE FROM votes WHERE event_id=? AND voter_id=?',(ev['id'],p['id']))
-    for rank,t in targets:
-        conn.execute('INSERT INTO votes(event_id,voter_id,target_no,rank_no,created_at) VALUES(?,?,?,?,?)',(ev['id'],p['id'],t,rank,now()))
-    conn.commit(); conn.close(); flash('투표가 저장되었습니다. 결과는 관리자만 확인할 수 있습니다.')
-    return redirect(url_for('party',code=code))
+
+    target=conn.execute(
+        'SELECT * FROM participants WHERE event_id=? AND nickname=?',
+        (ev['id'], target_nickname)
+    ).fetchone()
+
+    if not target:
+        conn.close()
+        flash('등록되지 않은 닉네임입니다.')
+        return redirect(url_for('party', code=code))
+
+    if target['id'] == p['id']:
+        conn.close()
+        flash('본인에게는 투표할 수 없습니다.')
+        return redirect(url_for('party', code=code))
+
+    conn.execute(
+        'DELETE FROM votes WHERE event_id=? AND voter_id=?',
+        (ev['id'], p['id'])
+    )
+
+    conn.execute(
+        '''INSERT INTO votes(
+            event_id,
+            voter_id,
+            target_no,
+            rank_no,
+            reason,
+            created_at
+        ) VALUES(?,?,?,?,?,?)''',
+        (
+            ev['id'],
+            p['id'],
+            target['participant_no'],
+            1,
+            reason,
+            now()
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    flash('🎤 VIBE ON SINGER 투표가 저장되었습니다!')
+    return redirect(url_for('party', code=code))
 
 @app.route('/admin', methods=['GET','POST'])
 def admin_login():
