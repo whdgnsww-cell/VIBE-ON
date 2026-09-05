@@ -135,6 +135,29 @@
     </form>
 </section>
 {% endif %}
-{% if ev.phase=='vote' %}<section class="card vote"><h2>호감 투표</h2><p>상대방 <b>명찰 번호</b>만 입력합니다. 닉네임 목록이나 중간 결과는 공개되지 않습니다.</p><form method="post" action="{{url_for('save_vote',code=ev.code)}}">{% for i in range(1,ev.max_votes+1) %}<label>{{i}}순위</label><input name="vote{{i}}" placeholder="예: B04" maxlength="8">{% endfor %}<button>투표 저장하기</button></form><div class="privacy">🔒 누가 누구에게 투표했는지 참가자에게 공개되지 않습니다.</div></section>{% endif %}
-{% if ev.phase=='closed' %}<section class="card center"><div class="bigicon">♥</div><h2>파티가 마감되었습니다</h2><p>참여해주셔서 감사합니다. 결과는 운영자가 별도로 안내합니다.</p></section>{% endif %}{% endif %}
-{% endblock %}
+{% if ev.phase=='vote' %}
+<section class="card vote">
+    <h2>🎤 VIBE ON SINGER</h2>
+    <p>오늘 가장 멋진 무대를 보여준 참가자에게 투표해주세요!</p>
+    <p>노래 실력, 무대 매너, 분위기까지 생각해서 나의 VIBE ON SINGER를 선택해주세요.</p>
+
+    <form method="post" action="{{ url_for('save_vote', code=ev.code) }}">
+        <label>투표할 참가자의 닉네임</label>
+        <input
+            type="text"
+            name="target_nickname"
+            placeholder="닉네임을 입력해주세요"
+            required
+        >
+        <label>🎶 이 사람을 선택한 이유는?</label>
+        <textarea
+            name="reason"
+            maxlength="100"
+            placeholder="예: 선곡이 좋았어요 / 목소리가 좋았어요 / 무대 매너가 최고였어요"
+            required
+        ></textarea>
+
+        <button type="submit">🎤 VIBE ON SINGER 투표하기</button>
+    </form>
+</section>
+{% endif %}
