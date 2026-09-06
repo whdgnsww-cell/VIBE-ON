@@ -6,94 +6,87 @@ import qrcode
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get('SOLOPARTY_DB', os.path.join(BASE, 'party.db'))
+
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'change-me-now')
 ADMIN_HASH = generate_password_hash(ADMIN_PASSWORD)
 
 PHASES = ['checkin','profile','vote','closed']
 PHASE_LABEL = {'checkin':'입장/체크인','profile':'프로필 작성','vote':'투표 진행','closed':'마감'}
 
-
 def db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
+    # 동시 접속(체크인 몰림) 시 'database is locked'로 멈추는 것을 방지
+    conn.execute('PRAGMA journal_mode=WAL')
+    conn.execute('PRAGMA busy_timeout=5000')
     return conn
-
 
 def init_db():
     conn = db()
     conn.executescript('''
     CREATE TABLE IF NOT EXISTS events(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      code TEXT UNIQUE NOT NULL,
-      name TEXT NOT NULL,
-      event_date TEXT,
-      phase TEXT NOT NULL DEFAULT 'checkin',
-      max_votes INTEGER NOT NULL DEFAULT 3,
-      created_at TEXT NOT NULL
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        event_date TEXT,
+        phase TEXT NOT NULL DEFAULT 'checkin',
+        max_votes INTEGER NOT NULL DEFAULT 3,
+        created_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS participants(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      event_id INTEGER NOT NULL,
-      token TEXT UNIQUE NOT NULL,
-      participant_no TEXT NOT NULL,
-      nickname TEXT NOT NULL,
-      age_group TEXT,
-      mbti TEXT,
-      gender TEXT,
-      media_consent TEXT,
-      visit_source TEXT,
-      contest_join TEXT,
-      intro TEXT,
-      answer1 TEXT,
-      answer2 TEXT,
-      checked_in_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      UNIQUE(event_id, participant_no),
-      UNIQUE(event_id, nickname),
-      FOREIGN KEY(event_id) REFERENCES events(id)
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id INTEGER NOT NULL,
+        token TEXT UNIQUE NOT NULL,
+        participant_no TEXT NOT NULL,
+        nickname TEXT NOT NULL,
+        age_group TEXT,
+        mbti TEXT,
+        gender TEXT,
+        media_consent TEXT,
+        visit_source TEXT,
+        contest_join TEXT,
+        intro TEXT,
+        answer1 TEXT,
+        answer2 TEXT,
+        checked_in_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(event_id, participant_no),
+        UNIQUE(event_id, nickname),
+        FOREIGN KEY(event_id) REFERENCES events(id)
     );
     CREATE TABLE IF NOT EXISTS votes(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      event_id INTEGER NOT NULL,
-      voter_id INTEGER NOT NULL,
-      target_no TEXT NOT NULL,
-      rank_no INTEGER NOT NULL,
-      reason TEXT,
-      created_at TEXT NOT NULL,
-      UNIQUE(event_id, voter_id, rank_no),
-      FOREIGN KEY(event_id) REFERENCES events(id),
-      FOREIGN KEY(voter_id) REFERENCES participants(id)
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id INTEGER NOT NULL,
+        voter_id INTEGER NOT NULL,
+        target_no TEXT NOT NULL,
+        rank_no INTEGER NOT NULL,
+        reason TEXT,
+        created_at TEXT NOT NULL,
+        UNIQUE(event_id, voter_id, rank_no),
+        FOREIGN KEY(event_id) REFERENCES events(id),
+        FOREIGN KEY(voter_id) REFERENCES participants(id)
     );
     ''')
-    columns = {
-        row["name"]
-        for row in conn.execute("PRAGMA table_info(participants)").fetchall()
-    }
 
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(participants)").fetchall()}
     if "gender" not in columns:
         conn.execute("ALTER TABLE participants ADD COLUMN gender TEXT")
-    
     if "media_consent" not in columns:
         conn.execute("ALTER TABLE participants ADD COLUMN media_consent TEXT")
-    
     if "visit_source" not in columns:
         conn.execute("ALTER TABLE participants ADD COLUMN visit_source TEXT")
     if "contest_join" not in columns:
         conn.execute("ALTER TABLE participants ADD COLUMN contest_join TEXT")
 
-    vote_columns = {
-        row["name"]
-        for row in conn.execute("PRAGMA table_info(votes)").fetchall()
-    }
-
+    vote_columns = {row["name"] for row in conn.execute("PRAGMA table_info(votes)").fetchall()}
     if "reason" not in vote_columns:
         conn.execute("ALTER TABLE votes ADD COLUMN reason TEXT")
 
     conn.commit()
     conn.close()
-
 
 def now(): return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -137,35 +130,24 @@ def party(code):
         media_consent=request.form.get('media_consent','').strip()
         visit_source_other=request.form.get('visit_source_other','').strip()
         contest_join=request.form.get('contest_join','').strip()
+
         if len(nickname) < 1:
             flash('닉네임을 입력해주세요.')
             return redirect(url_for('party', code=code))
-
         if age_group not in ('20대', '30대'):
             flash('나이대를 선택해주세요.')
             return redirect(url_for('party', code=code))
-
         if gender not in ('남성', '여성'):
             flash('성별을 선택해주세요.')
             return redirect(url_for('party', code=code))
-
         if media_consent != 'yes':
             flash('사진·영상 촬영 및 SNS 활용 동의가 필요합니다.')
             return redirect(url_for('party', code=code))
-        allowed_sources = (
-            '인스타그램',
-            '블로그',
-            '인터넷 검색',
-            '모임·소개팅 앱',
-            '지인 추천',
-            '재방문',
-            '기타'
-        )
 
+        allowed_sources = ('인스타그램','블로그','인터넷 검색','모임·소개팅 앱','지인 추천','재방문','기타')
         if visit_source not in allowed_sources:
             flash('방문 경로를 선택해주세요.')
             return redirect(url_for('party', code=code))
-
         if visit_source == '기타':
             if not visit_source_other:
                 flash('기타 방문 경로를 입력해주세요.')
@@ -178,73 +160,39 @@ def party(code):
         conn=db()
         try:
             token=secrets.token_urlsafe(24)
-
             conn.execute(
                 '''INSERT INTO participants(
-                    event_id,
-                    token,
-                    participant_no,
-                    nickname,
-                    age_group,
-                    gender,
-                    media_consent,
-                    visit_source,
-                    checked_in_at,
-                    updated_at
+                    event_id, token, participant_no, nickname, age_group,
+                    gender, media_consent, visit_source, checked_in_at, updated_at
                 ) VALUES(?,?,?,?,?,?,?,?,?,?)''',
-                (
-                    ev['id'],
-                    token,
-                    participant_no,
-                    nickname,
-                    age_group,
-                    gender,
-                    media_consent,
-                    visit_source,
-                    now(),
-                    now()
-                )
+                (ev['id'], token, participant_no, nickname, age_group,
+                 gender, media_consent, visit_source, now(), now())
             )
-
             conn.commit()
             session[f'participant_{ev["id"]}']=token
-
         except sqlite3.IntegrityError:
             flash('이미 사용 중인 닉네임입니다. 다른 닉네임을 사용해주세요.')
-
         finally:
             conn.close()
-
         return redirect(url_for('party', code=code))
+
     return render_template('party.html', ev=ev, p=p)
 
 @app.route('/p/<code>/profile', methods=['POST'])
 def save_profile(code):
     ev=event_by_code(code)
     p=participant_for(ev['id']) if ev else None
-
     if not ev or not p:
         abort(403)
-
     if ev['phase'] not in ('profile','vote'):
         flash('지금은 프로필 작성 시간이 아닙니다.')
         return redirect(url_for('party', code=code))
 
-    vals=[
-    request.form.get(k,'').strip()
-    for k in ['mbti','intro','answer1','answer2','contest_join']
-]
-
-    vals=[
-        request.form.get(k,'').strip()
-        for k in ['mbti','intro','answer1','answer2','contest_join']
-    ]
+    vals=[request.form.get(k,'').strip() for k in ['mbti','intro','answer1','answer2','contest_join']]
 
     if vals[4] not in ('yes', 'no'):
         flash('노래 대회 참가 여부를 선택해주세요.')
         return redirect(url_for('party', code=code))
-
-    conn=db()
 
     conn=db()
     conn.execute(
@@ -255,7 +203,6 @@ def save_profile(code):
     )
     conn.commit()
     conn.close()
-
     flash('작성 내용이 저장되었습니다. 다른 참가자에게 공개되지 않습니다.')
     return redirect(url_for('party', code=code))
 
@@ -263,69 +210,43 @@ def save_profile(code):
 def save_vote(code):
     ev=event_by_code(code)
     p=participant_for(ev['id']) if ev else None
-
     if not ev or not p:
         abort(403)
-
     if ev['phase'] != 'vote':
         flash('관리자가 아직 투표를 열지 않았습니다.')
         return redirect(url_for('party', code=code))
 
     target_nickname=request.form.get('target_nickname','').strip()
     reason=request.form.get('reason','').strip()
-
     if not target_nickname:
         flash('투표할 참가자의 닉네임을 입력해주세요.')
         return redirect(url_for('party', code=code))
-
     if not reason:
         flash('투표한 이유를 간단하게 적어주세요.')
         return redirect(url_for('party', code=code))
 
     conn=db()
-
     target=conn.execute(
         'SELECT * FROM participants WHERE event_id=? AND nickname=?',
         (ev['id'], target_nickname)
     ).fetchone()
-
     if not target:
         conn.close()
         flash('등록되지 않은 닉네임입니다.')
         return redirect(url_for('party', code=code))
-
     if target['id'] == p['id']:
         conn.close()
         flash('본인에게는 투표할 수 없습니다.')
         return redirect(url_for('party', code=code))
 
+    conn.execute('DELETE FROM votes WHERE event_id=? AND voter_id=?',(ev['id'], p['id']))
     conn.execute(
-        'DELETE FROM votes WHERE event_id=? AND voter_id=?',
-        (ev['id'], p['id'])
+        '''INSERT INTO votes(event_id, voter_id, target_no, rank_no, reason, created_at)
+           VALUES(?,?,?,?,?,?)''',
+        (ev['id'], p['id'], target['participant_no'], 1, reason, now())
     )
-
-    conn.execute(
-        '''INSERT INTO votes(
-            event_id,
-            voter_id,
-            target_no,
-            rank_no,
-            reason,
-            created_at
-        ) VALUES(?,?,?,?,?,?)''',
-        (
-            ev['id'],
-            p['id'],
-            target['participant_no'],
-            1,
-            reason,
-            now()
-        )
-    )
-
     conn.commit()
     conn.close()
-
     flash('🎤 VIBE ON SINGER 투표가 저장되었습니다!')
     return redirect(url_for('party', code=code))
 
@@ -339,7 +260,8 @@ def admin_login():
     return render_template('admin_login.html')
 
 @app.route('/admin/logout')
-def admin_logout(): session.pop('admin',None); return redirect(url_for('admin_login'))
+def admin_logout():
+    session.pop('admin',None); return redirect(url_for('admin_login'))
 
 @app.route('/admin/dashboard', methods=['GET','POST'])
 def admin_dashboard():
@@ -351,10 +273,11 @@ def admin_dashboard():
         max_votes=max(1,min(5,int(request.form.get('max_votes','3'))))
         try:
             conn.execute('INSERT INTO events(code,name,event_date,phase,max_votes,created_at) VALUES(?,?,?,?,?,?)',(code,name,date,'checkin',max_votes,now())); conn.commit()
-        except sqlite3.IntegrityError: flash('이미 사용 중인 파티 코드입니다.')
+        except sqlite3.IntegrityError:
+            flash('이미 사용 중인 파티 코드입니다.')
     events=conn.execute('''SELECT e.*, (SELECT COUNT(*) FROM participants p WHERE p.event_id=e.id) participants,
-                           (SELECT COUNT(*) FROM votes v WHERE v.event_id=e.id) votes
-                           FROM events e ORDER BY e.id DESC''').fetchall(); conn.close()
+        (SELECT COUNT(*) FROM votes v WHERE v.event_id=e.id) votes
+        FROM events e ORDER BY e.id DESC''').fetchall(); conn.close()
     return render_template('admin_dashboard.html',events=events)
 
 @app.route('/admin/event/<int:event_id>', methods=['GET','POST'])
@@ -367,21 +290,20 @@ def admin_event(event_id):
             conn.execute('UPDATE events SET phase=? WHERE id=?',(phase,event_id)); conn.commit(); ev=conn.execute('SELECT * FROM events WHERE id=?',(event_id,)).fetchone()
     participants=conn.execute('SELECT * FROM participants WHERE event_id=? ORDER BY id',(event_id,)).fetchall()
     votes=conn.execute('''SELECT v.*, p.nickname voter_nickname, p.participant_no voter_no,
-                         tp.nickname target_nickname FROM votes v
-                         JOIN participants p ON p.id=v.voter_id
-                         LEFT JOIN participants tp ON tp.event_id=v.event_id AND tp.participant_no=v.target_no
-                         WHERE v.event_id=? ORDER BY v.voter_id,v.rank_no''',(event_id,)).fetchall()
+        tp.nickname target_nickname FROM votes v
+        JOIN participants p ON p.id=v.voter_id
+        LEFT JOIN participants tp ON tp.event_id=v.event_id AND tp.participant_no=v.target_no
+        WHERE v.event_id=? ORDER BY v.voter_id,v.rank_no''',(event_id,)).fetchall()
     ranking=conn.execute('''SELECT tp.participant_no,tp.nickname,
-           SUM(CASE v.rank_no WHEN 1 THEN 3 WHEN 2 THEN 2 ELSE 1 END) score,
-           COUNT(v.id) vote_count
-           FROM participants tp LEFT JOIN votes v ON v.event_id=tp.event_id AND v.target_no=tp.participant_no
-           WHERE tp.event_id=? GROUP BY tp.id ORDER BY score DESC, vote_count DESC, tp.id''',(event_id,)).fetchall()
-    # mutual: any vote in either direction, regardless of rank
+        SUM(CASE v.rank_no WHEN 1 THEN 3 WHEN 2 THEN 2 ELSE 1 END) score,
+        COUNT(v.id) vote_count
+        FROM participants tp LEFT JOIN votes v ON v.event_id=tp.event_id AND v.target_no=tp.participant_no
+        WHERE tp.event_id=? GROUP BY tp.id ORDER BY score DESC, vote_count DESC, tp.id''',(event_id,)).fetchall()
     mutual=conn.execute('''SELECT DISTINCT a.participant_no a_no,a.nickname a_name,b.participant_no b_no,b.nickname b_name
-      FROM participants a JOIN participants b ON a.event_id=b.event_id AND a.id<b.id
-      WHERE a.event_id=? AND EXISTS(SELECT 1 FROM votes v1 WHERE v1.event_id=a.event_id AND v1.voter_id=a.id AND v1.target_no=b.participant_no)
-      AND EXISTS(SELECT 1 FROM votes v2 WHERE v2.event_id=a.event_id AND v2.voter_id=b.id AND v2.target_no=a.participant_no)
-      ORDER BY a.id,b.id''',(event_id,)).fetchall()
+        FROM participants a JOIN participants b ON a.event_id=b.event_id AND a.id<b.id
+        WHERE a.event_id=? AND EXISTS(SELECT 1 FROM votes v1 WHERE v1.event_id=a.event_id AND v1.voter_id=a.id AND v1.target_no=b.participant_no)
+        AND EXISTS(SELECT 1 FROM votes v2 WHERE v2.event_id=a.event_id AND v2.voter_id=b.id AND v2.target_no=a.participant_no)
+        ORDER BY a.id,b.id''',(event_id,)).fetchall()
     conn.close()
     return render_template('admin_event.html',ev=ev,participants=participants,votes=votes,ranking=ranking,mutual=mutual)
 
@@ -398,47 +320,33 @@ def export_csv(event_id):
     admin_required(); conn=db(); ev=conn.execute('SELECT * FROM events WHERE id=?',(event_id,)).fetchone()
     if not ev: conn.close(); abort(404)
     rows=conn.execute('''SELECT p.participant_no,p.nickname,p.age_group,p.mbti,p.intro,p.answer1,p.answer2,
-      GROUP_CONCAT(CASE WHEN v.rank_no=1 THEN v.target_no END) vote1,
-      GROUP_CONCAT(CASE WHEN v.rank_no=2 THEN v.target_no END) vote2,
-      GROUP_CONCAT(CASE WHEN v.rank_no=3 THEN v.target_no END) vote3
-      FROM participants p LEFT JOIN votes v ON v.voter_id=p.id WHERE p.event_id=? GROUP BY p.id ORDER BY p.id''',(event_id,)).fetchall(); conn.close()
+        GROUP_CONCAT(CASE WHEN v.rank_no=1 THEN v.target_no END) vote1,
+        GROUP_CONCAT(CASE WHEN v.rank_no=2 THEN v.target_no END) vote2,
+        GROUP_CONCAT(CASE WHEN v.rank_no=3 THEN v.target_no END) vote3
+        FROM participants p LEFT JOIN votes v ON v.voter_id=p.id WHERE p.event_id=? GROUP BY p.id ORDER BY p.id''',(event_id,)).fetchall(); conn.close()
     out=io.StringIO(); w=csv.writer(out); w.writerow(['명찰번호','닉네임','연령대','MBTI','한줄소개','질문1','질문2','1순위','2순위','3순위'])
     for r in rows: w.writerow(list(r))
     data='\ufeff'+out.getvalue()
     return Response(data, mimetype='text/csv; charset=utf-8', headers={'Content-Disposition':f'attachment; filename=party_{ev["code"]}.csv'})
 
-init_db()
-if __name__=='__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT','5000')), debug=True)
 @app.route('/admin/event/<int:event_id>/reset', methods=['POST'])
 def reset_event(event_id):
     admin_required()
     conn = db()
-
-    ev = conn.execute(
-        'SELECT * FROM events WHERE id=?',
-        (event_id,)
-    ).fetchone()
-
+    ev = conn.execute('SELECT * FROM events WHERE id=?', (event_id,)).fetchone()
     if not ev:
         conn.close()
         abort(404)
-
-    conn.execute(
-        'DELETE FROM votes WHERE event_id=?',
-        (event_id,)
-    )
-    conn.execute(
-        'DELETE FROM participants WHERE event_id=?',
-        (event_id,)
-    )
-    conn.execute(
-        "UPDATE events SET phase='checkin' WHERE id=?",
-        (event_id,)
-    )
-
+    conn.execute('DELETE FROM votes WHERE event_id=?', (event_id,))
+    conn.execute('DELETE FROM participants WHERE event_id=?', (event_id,))
+    conn.execute("UPDATE events SET phase='checkin' WHERE id=?", (event_id,))
     conn.commit()
     conn.close()
-
     flash('파티 데이터가 초기화되었습니다.')
     return redirect(url_for('admin_event', event_id=event_id))
+
+init_db()
+
+if __name__=='__main__':
+    # 로컬 개발용 실행. 운영(Render)에서는 Procfile의 gunicorn이 이 블록 대신 앱을 구동합니다.
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT','5000')), debug=True)
